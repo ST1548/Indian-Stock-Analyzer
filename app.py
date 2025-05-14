@@ -33,7 +33,31 @@ buy/sell recommendations for intraday and swing trading.
 # Sidebar for user inputs
 with st.sidebar:
     st.header("Stock Selection")
-    ticker_input = st.text_input("Enter Stock Symbol (e.g., AAPL, MSFT, GOOGL)", "AAPL").upper()
+    st.markdown("""
+    Enter stock symbol for Indian markets:
+    - For NSE stocks: Use symbol directly or with .NS suffix (e.g. RELIANCE or RELIANCE.NS)
+    - For BSE stocks: Use symbol with .BO suffix (e.g. RELIANCE.BO)
+    """)
+    ticker_input = st.text_input("Enter Stock Symbol", "RELIANCE").upper()
+    
+    st.header("Exchange")
+    exchange = st.radio(
+        "Select Exchange",
+        ["NSE", "BSE"],
+        index=0
+    )
+    
+    if '.' not in ticker_input:
+        if exchange == "NSE":
+            ticker_suffix = ".NS"
+        else:  # BSE
+            ticker_suffix = ".BO"
+        
+        full_ticker = f"{ticker_input}{ticker_suffix}"
+        st.caption(f"Your selected ticker: **{full_ticker}**")
+    else:
+        full_ticker = ticker_input
+        st.caption(f"Using provided ticker: **{full_ticker}**")
     
     st.header("Analysis Parameters")
     timeframe = st.selectbox(
@@ -67,31 +91,43 @@ try:
     if not ticker_input:
         st.warning("Please enter a stock symbol.")
         st.stop()
+    
+    # Use the full ticker with exchange suffix if it doesn't have one already
+    if '.' not in ticker_input:
+        if exchange == "NSE":
+            ticker_suffix = ".NS"
+        else:  # BSE
+            ticker_suffix = ".BO"
+        full_ticker = f"{ticker_input}{ticker_suffix}"
+    else:
+        full_ticker = ticker_input
         
-    ticker_valid = validate_ticker(ticker_input)
+    ticker_valid = validate_ticker(full_ticker)
     if not ticker_valid:
-        st.error(f"Invalid ticker symbol: {ticker_input}. Please enter a valid symbol.")
+        st.error(f"Invalid ticker symbol: {full_ticker}. Please enter a valid symbol.")
         st.stop()
     
-    with st.spinner(f"Fetching data for {ticker_input}..."):
+    with st.spinner(f"Fetching data for {full_ticker}..."):
         # Get stock data
         period = timeframe_to_period(timeframe)
-        stock_data = get_stock_data(ticker_input, period, interval)
+        stock_data = get_stock_data(full_ticker, period, interval)
         
         if stock_data.empty:
-            st.error(f"No data available for {ticker_input}. Please try another stock symbol.")
+            st.error(f"No data available for {full_ticker}. Please try another stock symbol.")
             st.stop()
         
         # Get company information
-        company_info = get_company_info(ticker_input)
+        company_info = get_company_info(full_ticker)
     
     # Display company information and current price
     col1, col2, col3 = st.columns([2, 1, 1])
     
     with col1:
-        st.subheader(f"{company_info.get('longName', ticker_input)}")
+        st.subheader(f"{company_info.get('longName', full_ticker)}")
         st.markdown(f"**Sector:** {company_info.get('sector', 'N/A')}")
         st.markdown(f"**Industry:** {company_info.get('industry', 'N/A')}")
+        st.markdown(f"**Exchange:** {company_info.get('exchange', 'N/A')}")
+        st.markdown(f"**Currency:** {company_info.get('currency', 'INR')}")
         
     with col2:
         current_price = stock_data['Close'].iloc[-1]

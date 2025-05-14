@@ -24,6 +24,23 @@ def timeframe_to_period(timeframe):
     
     return mapping.get(timeframe, "1mo")  # Default to 1mo if not found
 
+def format_indian_ticker(ticker):
+    """
+    Format Indian stock tickers to be compatible with Yahoo Finance.
+    
+    Args:
+        ticker (str): Stock ticker symbol
+        
+    Returns:
+        str: Formatted ticker symbol
+    """
+    # If ticker already contains a dot or ends with .NS or .BO, return as is
+    if '.' in ticker or ticker.endswith(('.NS', '.BO')):
+        return ticker
+        
+    # For Indian stocks, append .NS (NSE) by default
+    return f"{ticker}.NS"
+
 def validate_ticker(ticker):
     """
     Validate if a ticker symbol exists on Yahoo Finance.
@@ -35,14 +52,28 @@ def validate_ticker(ticker):
         bool: True if ticker is valid, False otherwise
     """
     try:
+        # First try as provided
         stock = yf.Ticker(ticker)
         info = stock.info
         
         # Check if we got valid info back
-        if 'symbol' in info or 'regularMarketPrice' in info:
+        if ('symbol' in info or 'regularMarketPrice' in info) and info.get('regularMarketPrice', 0) > 0:
             return True
+            
+        # If not valid, try with .NS suffix for Indian stocks
+        if '.' not in ticker:
+            stock_ns = yf.Ticker(f"{ticker}.NS")
+            info_ns = stock_ns.info
+            if ('symbol' in info_ns or 'regularMarketPrice' in info_ns) and info_ns.get('regularMarketPrice', 0) > 0:
+                return True
+                
+            # Try with .BO suffix (Bombay Stock Exchange)
+            stock_bo = yf.Ticker(f"{ticker}.BO")
+            info_bo = stock_bo.info
+            if ('symbol' in info_bo or 'regularMarketPrice' in info_bo) and info_bo.get('regularMarketPrice', 0) > 0:
+                return True
         
-        # If we got a dict back but no symbol, it might not be valid
+        # If we got a dict back but no valid data, it might not be valid
         return False
     except:
         return False

@@ -2,6 +2,7 @@ import yfinance as yf
 import pandas as pd
 from datetime import datetime, timedelta
 import numpy as np
+from utils import format_indian_ticker
 
 def get_stock_data(ticker, period='1mo', interval='1d'):
     """
@@ -16,10 +17,33 @@ def get_stock_data(ticker, period='1mo', interval='1d'):
         pd.DataFrame: DataFrame containing the stock data
     """
     try:
-        stock = yf.Ticker(ticker)
+        # Format ticker for Indian stock market if needed
+        formatted_ticker = format_indian_ticker(ticker)
+        
+        stock = yf.Ticker(formatted_ticker)
         data = stock.history(period=period, interval=interval)
         
         # Handle empty data
+        if data.empty:
+            # Try alternative exchanges if the symbol was not provided with an exchange suffix
+            if '.' not in ticker:
+                # Try NSE
+                nse_ticker = f"{ticker}.NS"
+                stock_nse = yf.Ticker(nse_ticker)
+                data_nse = stock_nse.history(period=period, interval=interval)
+                
+                if not data_nse.empty:
+                    data = data_nse
+                else:
+                    # Try BSE
+                    bse_ticker = f"{ticker}.BO"
+                    stock_bse = yf.Ticker(bse_ticker)
+                    data_bse = stock_bse.history(period=period, interval=interval)
+                    
+                    if not data_bse.empty:
+                        data = data_bse
+        
+        # If still empty, return empty DataFrame
         if data.empty:
             return pd.DataFrame()
         
@@ -49,12 +73,37 @@ def get_company_info(ticker):
         dict: Dictionary containing the company information
     """
     try:
-        stock = yf.Ticker(ticker)
+        # Format ticker for Indian stock market if needed
+        formatted_ticker = format_indian_ticker(ticker)
+        
+        stock = yf.Ticker(formatted_ticker)
         info = stock.info
+        
+        # Check if we got valid info back
+        if not info or 'regularMarketPrice' not in info or info.get('regularMarketPrice', 0) == 0:
+            # Try alternative exchanges if the symbol was not provided with an exchange suffix
+            if '.' not in ticker:
+                # Try NSE
+                nse_ticker = f"{ticker}.NS"
+                stock_nse = yf.Ticker(nse_ticker)
+                info_nse = stock_nse.info
+                
+                if info_nse and 'regularMarketPrice' in info_nse and info_nse.get('regularMarketPrice', 0) > 0:
+                    info = info_nse
+                    formatted_ticker = nse_ticker
+                else:
+                    # Try BSE
+                    bse_ticker = f"{ticker}.BO"
+                    stock_bse = yf.Ticker(bse_ticker)
+                    info_bse = stock_bse.info
+                    
+                    if info_bse and 'regularMarketPrice' in info_bse and info_bse.get('regularMarketPrice', 0) > 0:
+                        info = info_bse
+                        formatted_ticker = bse_ticker
         
         # Filter relevant information
         relevant_info = {
-            'longName': info.get('longName', ticker),
+            'longName': info.get('longName', formatted_ticker),
             'sector': info.get('sector', 'N/A'),
             'industry': info.get('industry', 'N/A'),
             'marketCap': info.get('marketCap', 'N/A'),
@@ -62,6 +111,8 @@ def get_company_info(ticker):
             'fiftyTwoWeekHigh': info.get('fiftyTwoWeekHigh', 'N/A'),
             'beta': info.get('beta', 'N/A'),
             'website': info.get('website', 'N/A'),
+            'exchange': info.get('exchange', 'N/A'),
+            'currency': info.get('currency', 'INR'),  # Default to INR for Indian stocks
         }
         
         return relevant_info
@@ -76,6 +127,8 @@ def get_company_info(ticker):
             'fiftyTwoWeekHigh': 'N/A',
             'beta': 'N/A',
             'website': 'N/A',
+            'exchange': 'N/A',
+            'currency': 'INR',  # Default to INR for Indian stocks
         }
 
 def get_earnings_data(ticker):
@@ -89,8 +142,29 @@ def get_earnings_data(ticker):
         pd.DataFrame: DataFrame containing earnings data
     """
     try:
-        stock = yf.Ticker(ticker)
+        # Format ticker for Indian stock market if needed
+        formatted_ticker = format_indian_ticker(ticker)
+        
+        stock = yf.Ticker(formatted_ticker)
         earnings = stock.earnings
+        
+        # If earnings data is empty, try alternative exchanges
+        if (not isinstance(earnings, pd.DataFrame) or earnings.empty) and '.' not in ticker:
+            # Try NSE
+            nse_ticker = f"{ticker}.NS"
+            stock_nse = yf.Ticker(nse_ticker)
+            earnings_nse = stock_nse.earnings
+            
+            if isinstance(earnings_nse, pd.DataFrame) and not earnings_nse.empty:
+                earnings = earnings_nse
+            else:
+                # Try BSE
+                bse_ticker = f"{ticker}.BO"
+                stock_bse = yf.Ticker(bse_ticker)
+                earnings_bse = stock_bse.earnings
+                
+                if isinstance(earnings_bse, pd.DataFrame) and not earnings_bse.empty:
+                    earnings = earnings_bse
         
         if isinstance(earnings, pd.DataFrame) and not earnings.empty:
             return earnings
@@ -111,8 +185,29 @@ def get_news(ticker, limit=5):
         list: List of news items
     """
     try:
-        stock = yf.Ticker(ticker)
+        # Format ticker for Indian stock market if needed
+        formatted_ticker = format_indian_ticker(ticker)
+        
+        stock = yf.Ticker(formatted_ticker)
         news = stock.news
+        
+        # If news is empty, try alternative exchanges
+        if not news and '.' not in ticker:
+            # Try NSE
+            nse_ticker = f"{ticker}.NS"
+            stock_nse = yf.Ticker(nse_ticker)
+            news_nse = stock_nse.news
+            
+            if news_nse:
+                news = news_nse
+            else:
+                # Try BSE
+                bse_ticker = f"{ticker}.BO"
+                stock_bse = yf.Ticker(bse_ticker)
+                news_bse = stock_bse.news
+                
+                if news_bse:
+                    news = news_bse
         
         if not news:
             return []
