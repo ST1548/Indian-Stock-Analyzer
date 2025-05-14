@@ -220,7 +220,17 @@ try:
         except Exception as e:
             st.markdown("**Market Cap:** N/A")
             st.markdown("**Volume:** N/A")
-        st.markdown(f"**52w Range:** ${company_info.get('fiftyTwoWeekLow', 0):.2f} - ${company_info.get('fiftyTwoWeekHigh', 0):.2f}")
+        # Add 52 week range with error handling
+        try:
+            low_52w = company_info.get('fiftyTwoWeekLow')
+            high_52w = company_info.get('fiftyTwoWeekHigh')
+            
+            if low_52w is not None and high_52w is not None:
+                st.markdown(f"**52w Range:** {currency_symbol}{float(low_52w):.2f} - {currency_symbol}{float(high_52w):.2f}")
+            else:
+                st.markdown("**52w Range:** N/A")
+        except (TypeError, ValueError):
+            st.markdown("**52w Range:** N/A")
     
     # Stock price chart
     st.subheader("Stock Price History")

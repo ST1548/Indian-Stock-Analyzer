@@ -73,9 +73,21 @@ def calculate_technical_indicators(stock_data):
     
     # Money Flow Index (MFI)
     try:
-        # Convert Volume to integers to avoid dtype warning
-        volume = df['Volume'].astype(float)
-        df['MFI'] = ta.mfi(df['High'], df['Low'], df['Close'], volume, length=14)
+        # Create a copy of the dataframe to avoid warnings
+        mfi_data = pd.DataFrame()
+        mfi_data['high'] = df['High'].astype(float)
+        mfi_data['low'] = df['Low'].astype(float)
+        mfi_data['close'] = df['Close'].astype(float)
+        mfi_data['volume'] = df['Volume'].astype(float)
+        
+        # Calculate MFI using the clean data
+        df['MFI'] = ta.mfi(
+            high=mfi_data['high'], 
+            low=mfi_data['low'], 
+            close=mfi_data['close'], 
+            volume=mfi_data['volume'], 
+            length=14
+        )
     except Exception as e:
         print(f"Warning: Could not calculate MFI: {e}")
         df['MFI'] = np.nan
