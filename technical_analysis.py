@@ -72,7 +72,13 @@ def calculate_technical_indicators(stock_data):
     df['CMO'] = ta.cmo(df['Close'], length=14)
     
     # Money Flow Index (MFI)
-    df['MFI'] = ta.mfi(df['High'], df['Low'], df['Close'], df['Volume'], length=14)
+    try:
+        # Convert Volume to integers to avoid dtype warning
+        volume = df['Volume'].astype(float)
+        df['MFI'] = ta.mfi(df['High'], df['Low'], df['Close'], volume, length=14)
+    except Exception as e:
+        print(f"Warning: Could not calculate MFI: {e}")
+        df['MFI'] = np.nan
     
     # Remove NaN values for indicators that require historical data
     df = df.replace([np.inf, -np.inf], np.nan)

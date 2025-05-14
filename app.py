@@ -163,23 +163,63 @@ try:
         st.markdown(f"**Currency:** {company_info.get('currency', 'INR')}")
         
     with col2:
-        current_price = stock_data['Close'].iloc[-1]
-        previous_price = stock_data['Close'].iloc[-2] if len(stock_data) > 1 else current_price
-        price_change = current_price - previous_price
-        price_change_pct = (price_change / previous_price) * 100 if previous_price != 0 else 0
-        
-        price_color = "green" if price_change >= 0 else "red"
-        change_icon = "▲" if price_change >= 0 else "▼"
-        
-        st.metric(
-            label="Current Price",
-            value=f"${current_price:.2f}",
-            delta=f"{change_icon} ${abs(price_change):.2f} ({price_change_pct:.2f}%)"
-        )
+        try:
+            current_price = stock_data['Close'].iloc[-1]
+            previous_price = stock_data['Close'].iloc[-2] if len(stock_data) > 1 else current_price
+            price_change = current_price - previous_price
+            price_change_pct = (price_change / previous_price) * 100 if previous_price != 0 else 0
+            
+            price_color = "green" if price_change >= 0 else "red"
+            change_icon = "▲" if price_change >= 0 else "▼"
+            
+            # Get currency symbol (default to ₹ for Indian stocks)
+            currency_symbol = "₹"
+            if company_info.get('currency') == 'USD':
+                currency_symbol = "$"
+            
+            st.metric(
+                label="Current Price",
+                value=f"{currency_symbol}{current_price:.2f}",
+                delta=f"{change_icon} {currency_symbol}{abs(price_change):.2f} ({price_change_pct:.2f}%)"
+            )
+        except Exception as e:
+            st.error(f"Error displaying price information: {str(e)}")
+            st.metric(
+                label="Current Price",
+                value="N/A",
+                delta="N/A"
+            )
         
     with col3:
-        st.markdown(f"**Market Cap:** ${company_info.get('marketCap', 0) / 1e9:.2f}B")
-        st.markdown(f"**Volume:** {stock_data['Volume'].iloc[-1]:,.0f}")
+        try:
+            # Get currency symbol (default to ₹ for Indian stocks)
+            currency_symbol = "₹"
+            if company_info.get('currency') == 'USD':
+                currency_symbol = "$"
+                
+            # Format market cap
+            market_cap = company_info.get('marketCap', 0)
+            if market_cap > 0:
+                if market_cap > 1e9:
+                    market_cap_str = f"{currency_symbol}{market_cap / 1e9:.2f}B"
+                else:
+                    market_cap_str = f"{currency_symbol}{market_cap / 1e6:.2f}M"
+            else:
+                market_cap_str = "N/A"
+            
+            # Format volume with error handling
+            try:
+                volume = stock_data['Volume'].iloc[-1]
+                volume_str = f"{volume:,.0f}"
+            except:
+                volume_str = "N/A"
+                
+            st.markdown(f"**Market Cap:** {market_cap_str}")
+            st.markdown(f"**Volume:** {volume_str}")
+            
+        except Exception as e:
+            st.markdown("**Market Cap:** N/A")
+            st.markdown("**Volume:** N/A")
         st.markdown(f"**52w Range:** ${company_info.get('fiftyTwoWeekLow', 0):.2f} - ${company_info.get('fiftyTwoWeekHigh', 0):.2f}")
     
     # Stock price chart
@@ -287,28 +327,43 @@ try:
         pass
     
     growth_score = 0
-    if fundamental_data.get("earningsGrowth") is not None:
+    try:
         growth = fundamental_data.get("earningsGrowth")
-        if growth > 0.1:  # 10% growth
-            growth_score = 1
-        elif growth < 0:
-            growth_score = -1
+        if growth is not None:
+            growth_float = float(growth)
+            if growth_float > 0.1:  # 10% growth
+                growth_score = 1
+            elif growth_float < 0:
+                growth_score = -1
+    except (TypeError, ValueError):
+        # If conversion fails, leave the score as 0
+        pass
     
     profitability_score = 0
-    if fundamental_data.get("profitMargins") is not None:
+    try:
         margin = fundamental_data.get("profitMargins")
-        if margin > 0.15:  # 15% profit margin
-            profitability_score = 1
-        elif margin < 0.05:
-            profitability_score = -1
+        if margin is not None:
+            margin_float = float(margin)
+            if margin_float > 0.15:  # 15% profit margin
+                profitability_score = 1
+            elif margin_float < 0.05:
+                profitability_score = -1
+    except (TypeError, ValueError):
+        # If conversion fails, leave the score as 0
+        pass
     
     debt_score = 0
-    if fundamental_data.get("debtToEquity") is not None:
+    try:
         debt = fundamental_data.get("debtToEquity")
-        if debt < 50:  # Low debt
-            debt_score = 1
-        elif debt > 100:  # High debt
-            debt_score = -1
+        if debt is not None:
+            debt_float = float(debt)
+            if debt_float < 50:  # Low debt
+                debt_score = 1
+            elif debt_float > 100:  # High debt
+                debt_score = -1
+    except (TypeError, ValueError):
+        # If conversion fails, leave the score as 0
+        pass
     
     # Aggregate fundamental score
     fundamental_score = pe_score + growth_score + profitability_score + debt_score
