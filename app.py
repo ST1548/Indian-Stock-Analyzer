@@ -128,10 +128,25 @@ try:
     with st.spinner(f"Fetching data for {full_ticker}..."):
         # Get stock data
         period = timeframe_to_period(timeframe)
-        stock_data = get_stock_data(full_ticker, period, interval)
         
-        if stock_data.empty:
-            st.error(f"No data available for {full_ticker}. Please try another stock symbol.")
+        try:
+            stock_data = get_stock_data(full_ticker, period, interval)
+            
+            if stock_data.empty:
+                st.error(f"No data available for {full_ticker}. Please try another stock symbol.")
+                st.stop()
+                
+            # Verify that the stock data has required columns
+            required_columns = ['Open', 'High', 'Low', 'Close', 'Volume']
+            missing_columns = [col for col in required_columns if col not in stock_data.columns]
+            
+            if missing_columns:
+                st.error(f"Missing required data columns: {', '.join(missing_columns)}. Please try another stock or time period.")
+                st.stop()
+                
+        except Exception as e:
+            st.error(f"Error processing data for {full_ticker}: {str(e)}")
+            st.error("Please try another stock symbol or check your internet connection.")
             st.stop()
         
         # Get company information
@@ -288,8 +303,24 @@ try:
     
     # Calculate technical indicators
     with st.spinner("Calculating technical indicators..."):
-        technical_data = calculate_technical_indicators(stock_data)
-        technical_signals = generate_technical_signals(technical_data)
+        try:
+            technical_data = calculate_technical_indicators(stock_data)
+            
+            # Verify technical data was calculated successfully
+            if technical_data is None or technical_data.empty:
+                st.error("Failed to calculate technical indicators. Data may be insufficient.")
+                st.stop()
+                
+            technical_signals = generate_technical_signals(technical_data)
+            
+            # Verify signals were generated successfully
+            if not technical_signals:
+                st.warning("Unable to generate reliable technical signals. Data may be insufficient.")
+                # Continue execution but with a warning
+        except Exception as e:
+            st.error(f"Error in technical analysis: {str(e)}")
+            st.error("Technical indicators could not be calculated. Please try another stock or timeframe.")
+            st.stop()
     
     # Plot technical indicators
     st.subheader("Technical Indicators")

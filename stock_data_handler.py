@@ -47,15 +47,27 @@ def get_stock_data(ticker, period='1mo', interval='1d'):
         if data.empty:
             return pd.DataFrame()
         
-        # Reset index to make Date a column
-        data = data.reset_index()
-        
-        # Convert Date to datetime if it's not already
-        if not pd.api.types.is_datetime64_any_dtype(data['Date']):
-            data['Date'] = pd.to_datetime(data['Date'])
+        # Handle the index (which could be Datetime or Date)
+        try:
+            # Reset index to make the date a column
+            data = data.reset_index()
             
-        # Set Date as index again
-        data = data.set_index('Date')
+            # Check if 'Date' or 'Datetime' is in columns
+            date_col = None
+            if 'Date' in data.columns:
+                date_col = 'Date'
+            elif 'Datetime' in data.columns:
+                date_col = 'Datetime'
+            
+            # If we found a date column, convert and set as index
+            if date_col:
+                if not pd.api.types.is_datetime64_any_dtype(data[date_col]):
+                    data[date_col] = pd.to_datetime(data[date_col])
+                data = data.set_index(date_col)
+        except Exception as e:
+            print(f"Warning: Issue with date handling: {e}")
+            # If there was an error, just return as is (might already have date as index)
+            pass
         
         return data
     except Exception as e:
