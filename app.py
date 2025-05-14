@@ -18,16 +18,17 @@ from utils import timeframe_to_period, validate_ticker
 
 # Page configuration
 st.set_page_config(
-    page_title="AI Stock Analyzer",
+    page_title="Indian Stock Market Analyzer",
     page_icon="📈",
     layout="wide"
 )
 
 # App title and description
-st.title("AI Stock Analyzer")
+st.title("Indian Stock Market Analyzer")
 st.markdown("""
-This application analyzes stocks using fundamental and technical analysis to provide 
-buy/sell recommendations for intraday and swing trading.
+This application analyzes Indian stocks from NSE and BSE using fundamental and technical analysis to provide 
+buy/sell recommendations for intraday and swing trading. Select your stock symbol in the sidebar and
+choose between NSE and BSE exchanges.
 """)
 
 # Sidebar for user inputs
@@ -38,6 +39,23 @@ with st.sidebar:
     - For NSE stocks: Use symbol directly or with .NS suffix (e.g. RELIANCE or RELIANCE.NS)
     - For BSE stocks: Use symbol with .BO suffix (e.g. RELIANCE.BO)
     """)
+    
+    # Common Indian stocks for quick selection
+    st.subheader("Popular Indian Stocks")
+    st.markdown("""
+    **NSE Nifty50 Stocks:**
+    - RELIANCE - Reliance Industries
+    - TCS - Tata Consultancy Services
+    - HDFCBANK - HDFC Bank
+    - INFY - Infosys
+    - ICICIBANK - ICICI Bank
+    - HINDUNILVR - Hindustan Unilever
+    - BAJFINANCE - Bajaj Finance
+    - SBIN - State Bank of India
+    - BHARTIARTL - Bharti Airtel
+    - ADANIENT - Adani Enterprises
+    """)
+    
     ticker_input = st.text_input("Enter Stock Symbol", "RELIANCE").upper()
     
     st.header("Exchange")
@@ -151,12 +169,12 @@ try:
     
     # Stock price chart
     st.subheader("Stock Price History")
-    fig = plot_stock_price_chart(stock_data, ticker_input, timeframe)
+    fig = plot_stock_price_chart(stock_data, full_ticker, timeframe)
     st.plotly_chart(fig, use_container_width=True)
     
     # Fundamental Analysis
     st.header("Fundamental Analysis")
-    fundamental_data = perform_fundamental_analysis(ticker_input)
+    fundamental_data = perform_fundamental_analysis(full_ticker)
     
     # Display fundamental analysis in columns
     col1, col2, col3 = st.columns(3)
@@ -282,42 +300,42 @@ try:
     
     with tabs[0]:
         st.plotly_chart(
-            plot_technical_indicators(technical_data, ticker_input, 'moving_averages'),
+            plot_technical_indicators(technical_data, full_ticker, 'moving_averages'),
             use_container_width=True
         )
         st.markdown(technical_signals['moving_averages_explanation'])
     
     with tabs[1]:
         st.plotly_chart(
-            plot_technical_indicators(technical_data, ticker_input, 'rsi'),
+            plot_technical_indicators(technical_data, full_ticker, 'rsi'),
             use_container_width=True
         )
         st.markdown(technical_signals['rsi_explanation'])
     
     with tabs[2]:
         st.plotly_chart(
-            plot_technical_indicators(technical_data, ticker_input, 'macd'),
+            plot_technical_indicators(technical_data, full_ticker, 'macd'),
             use_container_width=True
         )
         st.markdown(technical_signals['macd_explanation'])
     
     with tabs[3]:
         st.plotly_chart(
-            plot_technical_indicators(technical_data, ticker_input, 'bollinger'),
+            plot_technical_indicators(technical_data, full_ticker, 'bollinger'),
             use_container_width=True
         )
         st.markdown(technical_signals['bollinger_explanation'])
     
     with tabs[4]:
         st.plotly_chart(
-            plot_technical_indicators(technical_data, ticker_input, 'stochastic'),
+            plot_technical_indicators(technical_data, full_ticker, 'stochastic'),
             use_container_width=True
         )
         st.markdown(technical_signals['stochastic_explanation'])
     
     with tabs[5]:
         st.plotly_chart(
-            plot_technical_indicators(technical_data, ticker_input, 'volume'),
+            plot_technical_indicators(technical_data, full_ticker, 'volume'),
             use_container_width=True
         )
         st.markdown(technical_signals['volume_explanation'])
@@ -338,14 +356,14 @@ try:
         if analyze_intraday and show_intraday:
             intraday_prediction = predict_stock_movement(
                 technical_data, 
-                ticker_input, 
+                full_ticker, 
                 'intraday'
             )
         
         if analyze_swing:
             swing_prediction = predict_stock_movement(
                 technical_data, 
-                ticker_input, 
+                full_ticker, 
                 'swing'
             )
     
@@ -397,8 +415,9 @@ try:
     # Disclaimer
     st.markdown("---")
     st.caption("""
-    **Disclaimer**: This tool provides analysis for informational purposes only and does not constitute 
-    investment advice. Always conduct your own research before making investment decisions.
+    **Disclaimer**: This tool provides analysis of Indian stocks from NSE and BSE for informational purposes only and does not constitute 
+    investment advice. All market data is sourced from Yahoo Finance. The analysis and recommendations are algorithmic in nature and may not 
+    account for all market factors. Always conduct your own research before making investment decisions in the Indian stock market.
     """)
 
 except Exception as e:
