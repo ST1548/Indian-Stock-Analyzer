@@ -107,6 +107,40 @@ def generate_technical_signals(df):
     Returns:
         dict: Dictionary containing signals and explanations
     """
+    # Helper function to safely check if a value is a number
+    def is_valid_number(value):
+        """Check if a value is a valid number (not None, NaN, or infinite)"""
+        if value is None:
+            return False
+        if isinstance(value, (int, float)):
+            return not (np.isnan(value) or np.isinf(value))
+        return False
+    
+    # Helper function for safe comparison
+    def safe_compare(a, b, comparison='greater'):
+        """Safely compare two values that might be None or NaN"""
+        if not is_valid_number(a) or not is_valid_number(b):
+            return False
+        
+        if comparison == 'greater':
+            return float(a) > float(b)
+        elif comparison == 'less':
+            return float(a) < float(b)
+        elif comparison == 'equal':
+            return float(a) == float(b)
+        return False
+    
+    # Helper to get value safely
+    def safe_get(df, column, index):
+        """Safely get a value from the dataframe that might be None or NaN"""
+        try:
+            value = df[column].iloc[index]
+            if is_valid_number(value):
+                return value
+            return None
+        except:
+            return None
+            
     signals = {}
     
     # Moving Average signals
@@ -115,46 +149,72 @@ def generate_technical_signals(df):
     
     # SMA20 and SMA50 crossover
     if 'SMA20' in df.columns and 'SMA50' in df.columns:
-        if df['SMA20'].iloc[-2] < df['SMA50'].iloc[-2] and df['SMA20'].iloc[-1] > df['SMA50'].iloc[-1]:
-            ma_signals.append("➕ **Golden Cross (SMA20 crossed above SMA50)**: Bullish signal indicating potential uptrend.")
-            ma_score += 1
-        elif df['SMA20'].iloc[-2] > df['SMA50'].iloc[-2] and df['SMA20'].iloc[-1] < df['SMA50'].iloc[-1]:
-            ma_signals.append("➖ **Death Cross (SMA20 crossed below SMA50)**: Bearish signal indicating potential downtrend.")
-            ma_score -= 1
+        sma20_prev = safe_get(df, 'SMA20', -2)
+        sma50_prev = safe_get(df, 'SMA50', -2)
+        sma20_curr = safe_get(df, 'SMA20', -1)
+        sma50_curr = safe_get(df, 'SMA50', -1)
+        
+        if (sma20_prev is not None and sma50_prev is not None and 
+            sma20_curr is not None and sma50_curr is not None):
+            if safe_compare(sma20_prev, sma50_prev, 'less') and safe_compare(sma20_curr, sma50_curr, 'greater'):
+                ma_signals.append("➕ **Golden Cross (SMA20 crossed above SMA50)**: Bullish signal indicating potential uptrend.")
+                ma_score += 1
+            elif safe_compare(sma20_prev, sma50_prev, 'greater') and safe_compare(sma20_curr, sma50_curr, 'less'):
+                ma_signals.append("➖ **Death Cross (SMA20 crossed below SMA50)**: Bearish signal indicating potential downtrend.")
+                ma_score -= 1
     
     # Price above/below SMAs
     if 'SMA20' in df.columns:
-        if df['Close'].iloc[-1] > df['SMA20'].iloc[-1]:
-            ma_signals.append("➕ **Price above SMA20**: Short-term bullish indication.")
-            ma_score += 0.5
-        else:
-            ma_signals.append("➖ **Price below SMA20**: Short-term bearish indication.")
-            ma_score -= 0.5
+        close_curr = safe_get(df, 'Close', -1)
+        sma20_curr = safe_get(df, 'SMA20', -1)
+        
+        if close_curr is not None and sma20_curr is not None:
+            if safe_compare(close_curr, sma20_curr, 'greater'):
+                ma_signals.append("➕ **Price above SMA20**: Short-term bullish indication.")
+                ma_score += 0.5
+            else:
+                ma_signals.append("➖ **Price below SMA20**: Short-term bearish indication.")
+                ma_score -= 0.5
     
     if 'SMA50' in df.columns:
-        if df['Close'].iloc[-1] > df['SMA50'].iloc[-1]:
-            ma_signals.append("➕ **Price above SMA50**: Medium-term bullish indication.")
-            ma_score += 0.5
-        else:
-            ma_signals.append("➖ **Price below SMA50**: Medium-term bearish indication.")
-            ma_score -= 0.5
+        close_curr = safe_get(df, 'Close', -1)
+        sma50_curr = safe_get(df, 'SMA50', -1)
+        
+        if close_curr is not None and sma50_curr is not None:
+            if safe_compare(close_curr, sma50_curr, 'greater'):
+                ma_signals.append("➕ **Price above SMA50**: Medium-term bullish indication.")
+                ma_score += 0.5
+            else:
+                ma_signals.append("➖ **Price below SMA50**: Medium-term bearish indication.")
+                ma_score -= 0.5
     
     if 'SMA200' in df.columns:
-        if df['Close'].iloc[-1] > df['SMA200'].iloc[-1]:
-            ma_signals.append("➕ **Price above SMA200**: Long-term bullish indication.")
-            ma_score += 0.5
-        else:
-            ma_signals.append("➖ **Price below SMA200**: Long-term bearish indication.")
-            ma_score -= 0.5
+        close_curr = safe_get(df, 'Close', -1)
+        sma200_curr = safe_get(df, 'SMA200', -1)
+        
+        if close_curr is not None and sma200_curr is not None:
+            if safe_compare(close_curr, sma200_curr, 'greater'):
+                ma_signals.append("➕ **Price above SMA200**: Long-term bullish indication.")
+                ma_score += 0.5
+            else:
+                ma_signals.append("➖ **Price below SMA200**: Long-term bearish indication.")
+                ma_score -= 0.5
     
     # EMA crossovers
     if 'EMA9' in df.columns and 'EMA21' in df.columns:
-        if df['EMA9'].iloc[-2] < df['EMA21'].iloc[-2] and df['EMA9'].iloc[-1] > df['EMA21'].iloc[-1]:
-            ma_signals.append("➕ **EMA9 crossed above EMA21**: Bullish signal for short-term momentum.")
-            ma_score += 1
-        elif df['EMA9'].iloc[-2] > df['EMA21'].iloc[-2] and df['EMA9'].iloc[-1] < df['EMA21'].iloc[-1]:
-            ma_signals.append("➖ **EMA9 crossed below EMA21**: Bearish signal for short-term momentum.")
-            ma_score -= 1
+        ema9_prev = safe_get(df, 'EMA9', -2)
+        ema21_prev = safe_get(df, 'EMA21', -2)
+        ema9_curr = safe_get(df, 'EMA9', -1)
+        ema21_curr = safe_get(df, 'EMA21', -1)
+        
+        if (ema9_prev is not None and ema21_prev is not None and 
+            ema9_curr is not None and ema21_curr is not None):
+            if safe_compare(ema9_prev, ema21_prev, 'less') and safe_compare(ema9_curr, ema21_curr, 'greater'):
+                ma_signals.append("➕ **EMA9 crossed above EMA21**: Bullish signal for short-term momentum.")
+                ma_score += 1
+            elif safe_compare(ema9_prev, ema21_prev, 'greater') and safe_compare(ema9_curr, ema21_curr, 'less'):
+                ma_signals.append("➖ **EMA9 crossed below EMA21**: Bearish signal for short-term momentum.")
+                ma_score -= 1
     
     signals['moving_averages'] = 'bullish' if ma_score > 0 else 'bearish' if ma_score < 0 else 'neutral'
     signals['moving_averages_score'] = ma_score
@@ -357,21 +417,26 @@ def generate_technical_signals(df):
         
         # On-Balance Volume (OBV)
         if 'OBV' in df.columns and len(df) >= 5:
-            current_obv = df['OBV'].iloc[-1]
-            prev_obv = df['OBV'].iloc[-5]
+            current_obv = safe_get(df, 'OBV', -1)
+            prev_obv = safe_get(df, 'OBV', -5)
+            current_close = safe_get(df, 'Close', -1)
+            prev_close = safe_get(df, 'Close', -5)
             
-            if current_obv > prev_obv and df['Close'].iloc[-1] > df['Close'].iloc[-5]:
-                volume_signals.append("➕ **Rising OBV with rising price**: Confirmation of uptrend.")
-                volume_score += 0.5
-            elif current_obv < prev_obv and df['Close'].iloc[-1] < df['Close'].iloc[-5]:
-                volume_signals.append("➖ **Falling OBV with falling price**: Confirmation of downtrend.")
-                volume_score -= 0.5
-            elif current_obv > prev_obv and df['Close'].iloc[-1] < df['Close'].iloc[-5]:
-                volume_signals.append("➕ **Rising OBV with falling price**: Potential bullish divergence.")
-                volume_score += 0.75
-            elif current_obv < prev_obv and df['Close'].iloc[-1] > df['Close'].iloc[-5]:
-                volume_signals.append("➖ **Falling OBV with rising price**: Potential bearish divergence.")
-                volume_score -= 0.75
+            if (current_obv is not None and prev_obv is not None and 
+                current_close is not None and prev_close is not None):
+                
+                if safe_compare(current_obv, prev_obv, 'greater') and safe_compare(current_close, prev_close, 'greater'):
+                    volume_signals.append("➕ **Rising OBV with rising price**: Confirmation of uptrend.")
+                    volume_score += 0.5
+                elif safe_compare(current_obv, prev_obv, 'less') and safe_compare(current_close, prev_close, 'less'):
+                    volume_signals.append("➖ **Falling OBV with falling price**: Confirmation of downtrend.")
+                    volume_score -= 0.5
+                elif safe_compare(current_obv, prev_obv, 'greater') and safe_compare(current_close, prev_close, 'less'):
+                    volume_signals.append("➕ **Rising OBV with falling price**: Potential bullish divergence.")
+                    volume_score += 0.75
+                elif safe_compare(current_obv, prev_obv, 'less') and safe_compare(current_close, prev_close, 'greater'):
+                    volume_signals.append("➖ **Falling OBV with rising price**: Potential bearish divergence.")
+                    volume_score -= 0.75
     
     signals['volume'] = 'bullish' if volume_score > 0 else 'bearish' if volume_score < 0 else 'neutral'
     signals['volume_score'] = volume_score
