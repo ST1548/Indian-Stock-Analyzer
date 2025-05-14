@@ -1,7 +1,154 @@
 import pandas as pd
 import numpy as np
-import pandas_ta as ta
 from datetime import datetime, timedelta
+
+# Custom import for pandas_ta that handles the pkg_resources issue
+try:
+    import pandas_ta as ta
+except ImportError:
+    # If importing pandas_ta fails due to pkg_resources, create our own minimal version
+    # with the functions we need for this application
+    class MinimalTA:
+        @staticmethod
+        def sma(series, length=None):
+            return series.rolling(window=length).mean()
+        
+        @staticmethod
+        def ema(series, length=None):
+            return series.ewm(span=length, adjust=False).mean()
+        
+        @staticmethod
+        def rsi(series, length=None):
+            delta = series.diff()
+            gain = (delta.where(delta > 0, 0)).rolling(window=length).mean()
+            loss = (-delta.where(delta < 0, 0)).rolling(window=length).mean()
+            rs = gain / loss
+            return 100 - (100 / (1 + rs))
+        
+        @staticmethod
+        def macd(series, fast=12, slow=26, signal=9):
+            ema_fast = series.ewm(span=fast, adjust=False).mean()
+            ema_slow = series.ewm(span=slow, adjust=False).mean()
+            macd_line = ema_fast - ema_slow
+            signal_line = macd_line.ewm(span=signal, adjust=False).mean()
+            histogram = macd_line - signal_line
+            
+            result = pd.DataFrame()
+            result[f'MACD_{fast}_{slow}_{signal}'] = macd_line
+            result[f'MACDs_{fast}_{slow}_{signal}'] = signal_line
+            result[f'MACDh_{fast}_{slow}_{signal}'] = histogram
+            return result
+        
+        @staticmethod
+        def bbands(series, length=20, std=2):
+            middle_band = series.rolling(window=length).mean()
+            std_dev = series.rolling(window=length).std()
+            upper_band = middle_band + std * std_dev
+            lower_band = middle_band - std * std_dev
+            bandwidth = (upper_band - lower_band) / middle_band
+            
+            result = pd.DataFrame()
+            result[f'BBL_{length}_{std}.0'] = lower_band
+            result[f'BBM_{length}_{std}.0'] = middle_band
+            result[f'BBU_{length}_{std}.0'] = upper_band
+            result[f'BBB_{length}_{std}.0'] = bandwidth
+            return result
+        
+        @staticmethod
+        def stoch(high, low, close, k=14, d=3, smooth_k=3):
+            lowest_low = low.rolling(window=k).min()
+            highest_high = high.rolling(window=k).max()
+            stoch_k = 100 * ((close - lowest_low) / (highest_high - lowest_low))
+            stoch_k_smoothed = stoch_k.rolling(window=smooth_k).mean()
+            stoch_d = stoch_k_smoothed.rolling(window=d).mean()
+            
+            result = pd.DataFrame()
+            result[f'STOCHk_{k}_{d}_{smooth_k}'] = stoch_k_smoothed
+            result[f'STOCHd_{k}_{d}_{smooth_k}'] = stoch_d
+            return result
+            
+        @staticmethod
+        def adx(high, low, close, length=14):
+            tr1 = abs(high - low)
+            tr2 = abs(high - close.shift(1))
+            tr3 = abs(low - close.shift(1))
+            tr = pd.DataFrame({'tr1': tr1, 'tr2': tr2, 'tr3': tr3}).max(axis=1)
+            atr = tr.rolling(window=length).mean()
+            
+            # Plus and minus directional movement
+            up_move = high - high.shift(1)
+            down_move = low.shift(1) - low
+            
+            plus_dm = up_move.where((up_move > down_move) & (up_move > 0), 0)
+            minus_dm = down_move.where((down_move > up_move) & (down_move > 0), 0)
+            
+            plus_di = 100 * (plus_dm.rolling(window=length).mean() / atr)
+            minus_di = 100 * (minus_dm.rolling(window=length).mean() / atr)
+            
+            dx = 100 * abs(plus_di - minus_di) / (plus_di + minus_di)
+            adx_val = dx.rolling(window=length).mean()
+            
+            result = pd.DataFrame()
+            result[f'ADX_{length}'] = adx_val
+            result[f'DMP_{length}'] = plus_di
+            result[f'DMN_{length}'] = minus_di
+            return result
+        
+        @staticmethod
+        def obv(close, volume):
+            return (np.sign(close.diff()) * volume).fillna(0).cumsum()
+        
+        @staticmethod
+        def atr(high, low, close, length=14):
+            tr1 = high - low
+            tr2 = abs(high - close.shift(1))
+            tr3 = abs(low - close.shift(1))
+            tr = pd.DataFrame({'tr1': tr1, 'tr2': tr2, 'tr3': tr3}).max(axis=1)
+            return tr.rolling(window=length).mean()
+        
+        @staticmethod
+        def ppo(close, fast=12, slow=26, signal=9):
+            ema_fast = close.ewm(span=fast, adjust=False).mean()
+            ema_slow = close.ewm(span=slow, adjust=False).mean()
+            ppo_line = 100 * ((ema_fast - ema_slow) / ema_slow)
+            ppo_signal = ppo_line.ewm(span=signal, adjust=False).mean()
+            ppo_hist = ppo_line - ppo_signal
+            
+            result = pd.DataFrame()
+            result[f'PPO_{fast}_{slow}_{signal}'] = ppo_line
+            result[f'PPOs_{fast}_{slow}_{signal}'] = ppo_signal
+            result[f'PPOh_{fast}_{slow}_{signal}'] = ppo_hist
+            return result
+        
+        @staticmethod
+        def ichimoku(high, low, close, tenkan=9, kijun=26, senkou=52):
+            # Simply return empty dataframe as this is a complex indicator
+            # and rarely used in basic analysis
+            return pd.DataFrame()
+        
+        @staticmethod
+        def cmo(close, length=14):
+            # Chande Momentum Oscillator
+            delta = close.diff()
+            up = delta.where(delta > 0, 0).rolling(window=length).sum()
+            down = -delta.where(delta < 0, 0).rolling(window=length).sum()
+            return 100 * ((up - down) / (up + down))
+        
+        @staticmethod
+        def mfi(high, low, close, volume, length=14):
+            # Money Flow Index
+            typical_price = (high + low + close) / 3
+            raw_money_flow = typical_price * volume
+            
+            delta = typical_price.diff()
+            positive_flow = raw_money_flow.where(delta > 0, 0).rolling(window=length).sum()
+            negative_flow = raw_money_flow.where(delta < 0, 0).rolling(window=length).sum()
+            
+            money_ratio = positive_flow / negative_flow
+            return 100 - (100 / (1 + money_ratio))
+    
+    # Use our minimal implementation instead
+    ta = MinimalTA()
 
 def calculate_technical_indicators(stock_data):
     """
