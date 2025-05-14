@@ -205,8 +205,16 @@ try:
         }
         
         for key, value in metrics.items():
-            if value != "N/A":
-                value = f"{float(value):.2f}"
+            # Handle None values and convert to "N/A"
+            if value is None:
+                value = "N/A"
+            # Only try to format if it's not "N/A" and not None
+            elif value != "N/A":
+                try:
+                    value = f"{float(value):.2f}"
+                except (TypeError, ValueError):
+                    # If conversion fails, display as is
+                    value = "N/A"
             st.markdown(f"**{key}:** {value}")
     
     with col2:
@@ -220,10 +228,17 @@ try:
         }
         
         for key, value in metrics.items():
-            if value != "N/A" and key != "EPS Growth":
-                value = f"{float(value) * 100:.2f}%"
+            # Handle None values and convert to "N/A"
+            if value is None:
+                value = "N/A"
+            # Only try to format if it's not "N/A" and not None
             elif value != "N/A":
-                value = f"{float(value) * 100:.2f}%"
+                try:
+                    # All values need to be shown as percentages
+                    value = f"{float(value) * 100:.2f}%"
+                except (TypeError, ValueError):
+                    # If conversion fails, display as is
+                    value = "N/A"
             st.markdown(f"**{key}:** {value}")
     
     with col3:
@@ -237,15 +252,21 @@ try:
         }
         
         for key, value in metrics.items():
-            if value != "N/A" and key == "Dividend Yield":
-                if value is not None:
-                    value = f"{float(value) * 100:.2f}%"
-            elif value != "N/A" and key == "Payout Ratio":
-                if value is not None:
-                    value = f"{float(value) * 100:.2f}%"
+            # Handle None values and convert to "N/A"
+            if value is None:
+                value = "N/A"
+            # Only try to format if it's not "N/A"
             elif value != "N/A":
-                if value is not None:
-                    value = f"{float(value):.2f}"
+                try:
+                    if key in ["Dividend Yield", "Payout Ratio"]:
+                        # Format as percentage
+                        value = f"{float(value) * 100:.2f}%"
+                    else:
+                        # Format as decimal
+                        value = f"{float(value):.2f}"
+                except (TypeError, ValueError):
+                    # If conversion fails, display as is
+                    value = "N/A"
             st.markdown(f"**{key}:** {value}")
     
     # Fundamental Analysis AI Interpretation
@@ -253,12 +274,17 @@ try:
     
     # Create fundamental scores based on common financial metrics
     pe_score = 0
-    if fundamental_data.get("trailingPE") is not None:
+    try:
         pe = fundamental_data.get("trailingPE")
-        if pe < 15:
-            pe_score = 1  # Potentially undervalued
-        elif pe > 30:
-            pe_score = -1  # Potentially overvalued
+        if pe is not None:
+            pe_float = float(pe)
+            if pe_float < 15:
+                pe_score = 1  # Potentially undervalued
+            elif pe_float > 30:
+                pe_score = -1  # Potentially overvalued
+    except (TypeError, ValueError):
+        # If conversion fails, leave the score as 0
+        pass
     
     growth_score = 0
     if fundamental_data.get("earningsGrowth") is not None:
