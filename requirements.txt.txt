@@ -6,3 +6,4 @@ yfinance==0.2.35
 plotly==5.18.0
 scikit-learn==1.4.0
 trafilatura==1.6.4
+setuptools>=41.0.0
